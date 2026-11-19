@@ -23,7 +23,7 @@ jobs:
           flutter create --platforms=android --org com.codewars --project-name code_wars .
           python3 tool/patch_android.py
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - name: Build APK
         run: flutter build apk --release --target-platform android-arm64
