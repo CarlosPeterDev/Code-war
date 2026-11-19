@@ -42,6 +42,11 @@ for name in ("build.gradle.kts", "build.gradle"):
 // Release-only game build: Chaquopy has no armeabi-v7a for Python 3.12 and the
 // Flutter plugin adds it to the debug variant, so debug is disabled here.
 androidComponents {
+    finalizeDsl { ext ->
+        ext.defaultConfig.ndk.abiFilters.clear()
+        ext.defaultConfig.ndk.abiFilters.add("arm64-v8a")
+        println("CODEWARS abiFilters=" + ext.defaultConfig.ndk.abiFilters)
+    }
     beforeVariants(selector().withBuildType("debug")) { it.enable = false }
 }
 
