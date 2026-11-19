@@ -1,6 +1,12 @@
 build/
 .dart_tool/
 android/
+ios/
 .flutter-plugins*
 .packages
 pubspec.lock
+.idea/
+*.iml
+node_modules/
+__pycache__/
+.pytest_cache/
