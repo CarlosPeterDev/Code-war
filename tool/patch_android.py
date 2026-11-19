@@ -39,6 +39,12 @@ for name in ("build.gradle.kts", "build.gradle"):
         s = re.sub(r"minSdk\s*=\s*\S+", "minSdk = 24", s)
         s = s.replace("ndk {", "ndk {")  # no-op marker
         s += '''
+// Release-only game build: Chaquopy has no armeabi-v7a for Python 3.12 and the
+// Flutter plugin adds it to the debug variant, so debug is disabled here.
+androidComponents {
+    beforeVariants(selector().withBuildType("debug")) { it.enable = false }
+}
+
 chaquopy {
     defaultConfig {
         version = "3.12"
