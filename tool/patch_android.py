@@ -46,7 +46,9 @@ chaquopy {
 }
 '''
         # ARM64 only
-        s = re.sub(r"(defaultConfig\s*\{\n)",
-                   lambda m: m.group(1) + '        ndk { abiFilters += listOf("arm64-v8a") }\n', s, count=1)
+        s = re.sub(r"(defaultConfig\s*\{[ \t]*\n)",
+                   lambda m: m.group(1) + ('        ndk { abiFilters += listOf("arm64-v8a") }\n' if kts else '        ndk { abiFilters "arm64-v8a" }\n'), s, count=1)
+        assert "abiFilters" in s, "abiFilters patch failed"
         f.write_text(s)
+        print(s)
 print("patched")
