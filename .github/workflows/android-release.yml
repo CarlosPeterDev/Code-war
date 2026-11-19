@@ -1,0 +1,49 @@
+name: android-release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: Generate Android scaffold and apply Code Wars patch
+        run: |
+          flutter create --platforms=android --org com.codewars --project-name code_wars .
+          python3 tool/patch_android.py
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build APK
+        run: flutter build apk --release --target-platform android-arm64
+      - name: Build AAB
+        run: flutter build appbundle --release --target-platform android-arm64
+      - name: Version, rename, verify, checksum
+        id: pkg
+        run: |
+          VER="0.1.${{ github.run_number }}"
+          mkdir out
+          cp build/app/outputs/flutter-apk/app-release.apk "out/code-wars-v${VER}.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "out/code-wars-v${VER}.aab"
+          unzip -tq "out/code-wars-v${VER}.apk"
+          unzip -tq "out/code-wars-v${VER}.aab"
+          (cd out && sha256sum code-wars-v${VER}.apk code-wars-v${VER}.aab > SHA256SUMS && sha256sum -c SHA256SUMS)
+          echo "ver=${VER}" >> "$GITHUB_OUTPUT"
+      - name: Publish release (APK, AAB, SHA256SUMS as separate assets)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.pkg.outputs.ver }}"
+          gh release create "v${VER}" out/* --title "Code Wars v${VER}" \
+            --notes "Debug-signed test build (no production signing). Commit ${GITHUB_SHA}." --latest
