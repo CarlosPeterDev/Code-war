@@ -198,3 +198,53 @@ def stars(sim):
         if frac < 0.45 and sim.teams[0].stats["script_errors"] == 0:
             s += 1
     return min(3, s)
+
+
+CAMPAIGN = [
+    dict(id="c01", title="Boot Sequence", mode="base_commander", difficulty="beginner", world="ironvale", seed=11,
+         brief="Your HQ is online. Automate mining and construction so the base runs itself.",
+         hint="Start from the Miner and Builder templates, then queue robots with a commander script."),
+    dict(id="c02", title="Pathfinder", mode="racing", difficulty="beginner", world="ironvale", seed=12,
+         brief="Race a scout through every checkpoint. Fewer ticks means more stars.",
+         hint="robot.checkpoint gives the next gate; move_to() it every tick."),
+    dict(id="c03", title="Recon", mode="exploration", difficulty="beginner", world="dune_reach", seed=13,
+         brief="Sand slows you down. Explore the dunes and recover the signal beacons.",
+         hint="robot.terrain(x, y) is 'unknown' for unexplored tiles - head there."),
+    dict(id="c04", title="Forge", mode="factory", difficulty="beginner", world="ironvale", seed=14,
+         brief="Build a refinery and feed it ore to produce alloy.",
+         hint="Deposit at the refinery, not the HQ. Share its position with robot.team_memory."),
+    dict(id="c05", title="First Contact", mode="robot_wars", difficulty="beginner", world="ironvale", seed=15,
+         brief="A passive enemy base. Build an army with scripts and destroy its HQ.",
+         hint="Keep miners working while defenders attack. Use team_enemies() for shared vision."),
+    dict(id="c06", title="Skirmish", mode="robot_wars", difficulty="easy", world="frostline", seed=16,
+         brief="The enemy now sends small groups. Defend, then counter-attack.",
+         hint="Turrets near the HQ plus support robots win trades."),
+    dict(id="c07", title="Supply Lines", mode="base_commander", difficulty="easy", world="verdant_basin", seed=17,
+         brief="Lakes make long detours. Optimise your mining routes.",
+         hint="Spread miners over different ore nodes; avoid queueing up at one."),
+    dict(id="c08", title="Speed Run", mode="racing", difficulty="normal", world="ember_fields", seed=18,
+         brief="A rock maze. The A* pathfinder is yours - but energy still matters.",
+         hint="Sand and diagonals cost more. Recharge decisions are part of the race."),
+    dict(id="c09", title="Deep Scan", mode="exploration", difficulty="normal", world="frostline", seed=19,
+         brief="Explore a frozen map with limited energy and a tight script budget.",
+         hint="Split the map between scouts using robot.id or groups."),
+    dict(id="c10", title="Assembly Line", mode="factory", difficulty="normal", world="dune_reach", seed=20,
+         brief="Higher alloy quota. Throughput is everything.",
+         hint="More miners and transports; keep the refinery close to the ore."),
+    dict(id="c11", title="Siege", mode="robot_wars", difficulty="normal", world="ember_fields", seed=21,
+         brief="A balanced AI with turrets and waves. Plan your economy and timing.",
+         hint="Research armor and damage; attack when your army outnumbers theirs."),
+    dict(id="c12", title="Warlord", mode="robot_wars", difficulty="hard", world="verdant_basin", seed=22,
+         brief="A scouting, harassing enemy that focus-fires. Mistakes are punished.",
+         hint="Protect miners with turrets. Support robots keep your front line alive."),
+    dict(id="c13", title="Final Stand", mode="robot_wars", difficulty="expert", world="ironvale", seed=23,
+         brief="An adaptive opponent that counters your composition. Tight script budget.",
+         hint="Mix unit types and keep adapting - the AI watches what you build."),
+]
+
+
+def campaign_config(mid, advanced_mode=False):
+    for m in CAMPAIGN:
+        if m["id"] == mid:
+            return build_config(m["mode"], m["difficulty"], m["world"], m["seed"], advanced_mode)
+    raise KeyError(mid)

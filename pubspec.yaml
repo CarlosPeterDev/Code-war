@@ -1,7 +1,7 @@
 name: code_wars
 description: Code Wars - program 3D robot armies with real Python.
 publish_to: none
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shared_preferences: ^2.3.0
+  webview_flutter: ^4.10.0
 
 dev_dependencies:
   flutter_test:
@@ -17,3 +19,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/renderer/index.html
+    - assets/ASSET_LICENSES.md

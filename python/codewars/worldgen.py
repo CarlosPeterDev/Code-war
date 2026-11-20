@@ -161,6 +161,19 @@ def generate_world(world_id, size, seed, ore_mult=1.0, two_bases=True):
             ring = [(hx + dx, hy + dy) for dx in range(-9, 10) for dy in range(-9, 10)
                     if 5 <= max(abs(dx), abs(dy)) <= 9]
             rng.shuffle(ring)
+            # at least two nodes inside the HQ's starting vision (radius 7) so miners have work at tick 0
+            close = [(hx + dx, hy + dy) for dx in range(-6, 7) for dy in range(-6, 7)
+                     if 4 <= max(abs(dx), abs(dy)) <= 6 and math.hypot(dx, dy) <= 6.4]
+            rng.shuffle(close)
+            near = sum(1 for o in ore if math.hypot(o["x"] - hx, o["y"] - hy) <= 6.4)
+            for ox, oy in close:
+                if near >= 2:
+                    break
+                if 0 <= ox < w and 0 <= oy < h and grid[oy][ox] not in BLOCKED_TERRAIN \
+                        and (ox, oy) not in occupied and (ox, oy) in reach:
+                    occupied.add((ox, oy))
+                    ore.append(dict(x=ox, y=oy, amount=int(rng.randint(220, 320) * ore_mult)))
+                    near += 1
             have = sum(1 for o in ore if math.hypot(o["x"] - hx, o["y"] - hy) <= 11)
             for ox, oy in ring:
                 if have >= 5:

@@ -4,8 +4,9 @@ import pathlib, re, shutil
 root = pathlib.Path("android")
 ov = pathlib.Path("android_overlay")
 
-# 1. Python sources + Kotlin activity
-shutil.copytree(ov / "python", root / "app/src/main/python", dirs_exist_ok=True)
+# 1. Python engine sources (package `codewars`) + Kotlin activity
+shutil.copytree("python", root / "app/src/main/python", dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
 for p in (root / "app/src/main/kotlin").rglob("MainActivity.kt"):
     p.unlink()
 dest = root / "app/src/main/kotlin/com/codewars/game"
@@ -62,4 +63,9 @@ chaquopy {
         assert "abiFilters" in s, "abiFilters patch failed"
         f.write_text(s)
         print(s)
+# 4. app label
+mf = root / "app/src/main/AndroidManifest.xml"
+t = mf.read_text()
+t = re.sub(r'android:label="[^"]*"', 'android:label="Code Wars"', t, count=1)
+mf.write_text(t)
 print("patched")

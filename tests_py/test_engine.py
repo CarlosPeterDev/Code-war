@@ -55,6 +55,7 @@ def test_worlds_are_connected_and_have_ore(world, seed):
     assert w["hq"][1] in reach
     for hq in w["hq"]:
         assert sum(1 for o in w["ore"] if math.hypot(o["x"] - hq[0], o["y"] - hq[1]) <= 11) >= 3
+        assert sum(1 for o in w["ore"] if math.hypot(o["x"] - hq[0], o["y"] - hq[1]) <= 6.4) >= 2, "ore visible at start"
 
 
 def test_world_generation_is_deterministic():
@@ -552,7 +553,7 @@ def test_post_match_analysis_explains_outcome():
     sim.step(sim.max_ticks)
     rep = analysis.analyze(sim)
     texts = " ".join(i["text"] for i in rep["items"])
-    assert rep["items"] and "HQ" in texts and rep["stars"] == 0 and ("Damage dealt" in texts or "dealt no damage" in texts) and any(i["kind"] == "bad" for i in rep["items"])
+    assert rep["items"] and sim.result["winner"] == 1 and "idle" in texts and rep["stars"] == 0 and ("Damage dealt" in texts or "dealt no damage" in texts) and any(i["kind"] == "bad" for i in rep["items"])
 
 
 def test_analysis_flags_script_errors():

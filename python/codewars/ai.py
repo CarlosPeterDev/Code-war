@@ -14,6 +14,8 @@ MILITARY = ("defender", "advanced", "scout")
 
 
 def run_team(sim, tid):
+    if sim.config.get("ai_off"):
+        return
     from . import api as _api
     lvl = sim.diff["ai_level"]
     react = sim.diff["ai_react"]

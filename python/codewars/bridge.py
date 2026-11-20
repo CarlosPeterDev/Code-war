@@ -2,7 +2,7 @@
 so the Dart/Kotlin side never touches Python objects. One active game session at a time."""
 import json
 
-from . import ENGINE_VERSION, analysis, api_spec, defs, modes, puzzles, sandbox, sim as simmod, templates
+from . import ENGINE_VERSION, analysis, api_spec, defs, lessons, modes, puzzles, sandbox, sim as simmod, templates, worldgen
 
 _game = None
 
@@ -88,35 +88,38 @@ def build_robot(cls):
     _need()
     from .api import BaseAPI
     try:
-        return _game.teams[0] and BaseAPI(_game, 0).build_robot(cls)
+        return _j(bool(BaseAPI(_game, 0).build_robot(cls)))
     except ValueError:
-        return False
+        return _j(False)
 
 
 def research(name):
     _need()
     from .api import BaseAPI
-    return BaseAPI(_game, 0).research(name)
+    try:
+        return _j(bool(BaseAPI(_game, 0).research(name)))
+    except ValueError:
+        return _j(False)
 
 
 def set_group(rid, group):
     _need()
     r = _game.robots.get(int(rid))
     if r is None or r.team != 0:
-        return False
+        return _j(False)
     r.group = str(group)[:20]
-    return True
+    return _j(True)
 
 
 def assign(key, script):
     _need()
     if script in (None, "", "none"):
         _game.assign.pop(key, None)
-        return True
+        return _j(True)
     if script not in _game.compiled:
-        return False
+        return _j(False)
     _game.assign[key] = script
-    return True
+    return _j(True)
 
 
 def robot_info(rid):
@@ -158,3 +161,38 @@ def load_game(blob):
     global _game
     _game = simmod.Sim.from_dict(json.loads(blob))
     return _j(dict(world=_game.world_info(), snapshot=_game.snapshot(full=True), problems=_game.script_problems))
+
+
+def lesson_list():
+    return _j(lessons.get_lessons())
+
+
+def run_lesson(lid, source):
+    return _j(lessons.run_lesson(lid, source))
+
+
+def campaign():
+    return _j(modes.CAMPAIGN)
+
+
+def campaign_config(mid):
+    return _j(modes.campaign_config(mid))
+
+
+def world_preview(world, size, seed):
+    w = worldgen.generate_world(world, int(size), int(seed))
+    return _j(dict(grid=w["grid"], hq=[list(h) for h in w["hq"]], ore=[[o["x"], o["y"]] for o in w["ore"]]))
+
+
+def start_campaign(mid, scripts_json, assign_json, advanced=False):
+    """Start a campaign mission using its fixed configuration."""
+    global _game
+    cfg = modes.campaign_config(mid, bool(advanced))
+    _game = simmod.Sim(cfg)
+    _game.set_scripts(json.loads(scripts_json), json.loads(assign_json))
+    return _j(dict(world=_game.world_info(), snapshot=_game.snapshot(full=True), problems=_game.script_problems))
+
+
+def mission_objectives(mode, difficulty):
+    cfg = modes.build_config(mode, difficulty, "ironvale", 1)
+    return _j([o.get("title", o["type"]) for o in cfg.get("objectives", [])])

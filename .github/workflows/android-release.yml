@@ -7,8 +7,23 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 permissions:
-  contents: write
+  contents: read
+env:
+  VERSION: 0.2.${{ github.run_number }}
+
 jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install pytest
+        run: python -m pip install pytest
+      - name: Engine, sandbox and lesson tests (CPython 3.12, same version as the app)
+        run: python -m pytest tests_py -q -x
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -18,32 +33,76 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
+      - name: Verify bundled renderer and assets
+        run: |
+          test -s assets/renderer/index.html
+          grep -q "window.CW" assets/renderer/index.html || grep -q "CW.init\|init(world)" assets/renderer/index.html
+          test -s assets/ASSET_LICENSES.md
+          ls -l assets/renderer/index.html
       - name: Generate Android scaffold and apply Code Wars patch
         run: |
           flutter create --platforms=android --org com.codewars --project-name code_wars .
           python3 tool/patch_android.py
       - run: flutter pub get
-      - run: flutter analyze --no-fatal-infos
-      - run: flutter test
-      - name: Build APK
-        run: flutter build apk --release --target-platform android-arm64
-      - name: Build AAB
-        run: flutter build appbundle --release --target-platform android-arm64
-      - name: Version, rename, verify, checksum
-        id: pkg
+      - name: Analyze (info-level lints are reported but not fatal)
+        run: flutter analyze --no-fatal-infos
+      - name: Dart / widget tests
+        run: flutter test
+      - name: Build release APK (arm64)
+        run: flutter build apk --release --target-platform android-arm64 --build-name=${VERSION} --build-number=${{ github.run_number }}
+      - name: Build release AAB (arm64)
+        run: flutter build appbundle --release --target-platform android-arm64 --build-name=${VERSION} --build-number=${{ github.run_number }}
+      - name: Verify, rename and checksum
         run: |
-          VER="0.1.${{ github.run_number }}"
           mkdir out
-          cp build/app/outputs/flutter-apk/app-release.apk "out/code-wars-v${VER}.apk"
-          cp build/app/outputs/bundle/release/app-release.aab "out/code-wars-v${VER}.aab"
-          unzip -tq "out/code-wars-v${VER}.apk"
-          unzip -tq "out/code-wars-v${VER}.aab"
-          (cd out && sha256sum code-wars-v${VER}.apk code-wars-v${VER}.aab > SHA256SUMS && sha256sum -c SHA256SUMS)
-          echo "ver=${VER}" >> "$GITHUB_OUTPUT"
-      - name: Publish release (APK, AAB, SHA256SUMS as separate assets)
+          cp build/app/outputs/flutter-apk/app-release.apk "out/code-wars-v${VERSION}.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "out/code-wars-v${VERSION}.aab"
+          unzip -tq "out/code-wars-v${VERSION}.apk"
+          unzip -tq "out/code-wars-v${VERSION}.aab"
+          unzip -l "out/code-wars-v${VERSION}.apk" | grep -q "libpython3.12" || { echo "embedded Python missing from APK"; exit 1; }
+          unzip -l "out/code-wars-v${VERSION}.apk" | grep -q "assets/flutter_assets/assets/renderer/index.html" || { echo "renderer missing from APK"; exit 1; }
+          (cd out && sha256sum "code-wars-v${VERSION}.apk" "code-wars-v${VERSION}.aab" > SHA256SUMS && sha256sum -c SHA256SUMS)
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-files
+          path: out/*
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    needs: [python-tests, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-files
+          path: out
+      - name: Re-verify downloaded files
+        run: |
+          (cd out && sha256sum -c SHA256SUMS)
+          ls -l out
+      - name: Publish release (APK, AAB and SHA256SUMS as separate, unzipped assets; marked Latest)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VER="${{ steps.pkg.outputs.ver }}"
-          gh release create "v${VER}" out/* --title "Code Wars v${VER}" \
-            --notes "Debug-signed test build (no production signing). Commit ${GITHUB_SHA}." --latest
+          gh release create "v${VERSION}" out/* --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" \
+            --title "Code Wars v${VERSION}" --latest \
+            --notes "Android test build of Code Wars v${VERSION} (arm64-v8a, Android 7.0+). Signed with the Flutter debug/test key: fine for sideloading and testing, NOT a production-signed or Play Store build. Verify downloads with SHA256SUMS. Commit ${GITHUB_SHA}."
+      - name: Verify the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)
+          echo "latest tag: $latest"
+          test "$latest" = "v${VERSION}"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v${VERSION}" --jq '.assets[].name' | sort | tee names.txt
+          grep -qx "code-wars-v${VERSION}.apk" names.txt
+          grep -qx "code-wars-v${VERSION}.aab" names.txt
+          grep -qx "SHA256SUMS" names.txt
+          mkdir dl && cd dl
+          gh release download "v${VERSION}" --repo "${GITHUB_REPOSITORY}"
+          sha256sum -c SHA256SUMS
