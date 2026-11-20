@@ -68,4 +68,18 @@ mf = root / "app/src/main/AndroidManifest.xml"
 t = mf.read_text()
 t = re.sub(r'android:label="[^"]*"', 'android:label="Code Wars"', t, count=1)
 mf.write_text(t)
+
+# 5. Android lint "vital" analysis crashes (lint/Kotlin bug) in plugin subprojects; the release build does not need it.
+for name in ("build.gradle.kts", "build.gradle"):
+    f = root / name
+    if f.exists():
+        t = f.read_text()
+        if "lintVital" not in t:
+            if name.endswith(".kts"):
+                t += '\nsubprojects {\n    tasks.configureEach {\n        if (name.startsWith("lintVital")) { enabled = false }\n    }\n}\n'
+            else:
+                t += '\nsubprojects {\n    tasks.configureEach { task ->\n        if (task.name.startsWith("lintVital")) { task.enabled = false }\n    }\n}\n'
+            f.write_text(t)
+            print("disabled lintVital tasks in", name)
+        break
 print("patched")
