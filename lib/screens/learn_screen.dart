@@ -123,9 +123,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   @override
   void initState() {
     super.initState();
-    Engine.I.apiReference().then((a) {
+    _loadApi();
+  }
+
+  Future<void> _loadApi() async {
+    try {
+      final a = await Engine.I.apiReference();
       if (mounted) setState(() => _api = a);
-    }).catchError((Object _) => <dynamic>[]);
+    } catch (_) {}
   }
 
   @override
